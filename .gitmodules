@@ -1,0 +1,15 @@
+[submodule "externals/slnunicode"]
+	path = externals/slnunicode
+	url = https://github.com/LuaDist/slnunicode.git
+[submodule "externals/cosmo"]
+	path = externals/cosmo
+	url = https://github.com/mascarenhas/cosmo.git
+[submodule "externals/alt-getopt"]
+	path = externals/alt-getopt
+	url = https://github.com/LuaDist/alt-getopt.git
+[submodule "externals/lunamark"]
+	path = externals/lunamark
+	url = https://github.com/jgm/lunamark.git
+[submodule "externals/lpeg"]
+	path = externals/lpeg
+	url = https://github.com/LuaDist/lpeg.git

@@ -1,0 +1,5 @@
+objs
+src/*
+!src/squishy
+!src/main.lua
+!src/lunamark.c
