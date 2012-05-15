@@ -11,7 +11,7 @@ int luaopen_unicode (lua_State *L);
 
 int main( int argc, char *argv[] )
 {
-    lua_State *L = lua_open();
+    lua_State *L = luaL_newstate();
 
     /* command line args */
     lua_newtable(L);

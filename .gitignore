@@ -1,4 +1,5 @@
 objs
+squish-14f827efadf2/squish
 src/*
 !src/squishy
 !src/main.lua
