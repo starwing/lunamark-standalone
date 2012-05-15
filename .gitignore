@@ -1,5 +1,8 @@
 objs
 squish-14f827efadf2/squish
+squish-14f827efadf2/squish.debug
+squish-14f827efadf2/gunzip.lua
+squish-14f827efadf2/gunzip.lua.uglified
 src/*
 !src/squishy
 !src/main.lua
