@@ -27,13 +27,31 @@ int main( int argc, char *argv[] )
 
     /* load the libs */
     luaL_openlibs(L);
-    luaopen_lpeg(L);
-    luaopen_unicode(L);
+    luaL_getsubtable(L, LUA_REGISTRYINDEX, "_PRELOAD");
+    lua_pushcfunction(L, luaopen_lpeg);
+    lua_setfield(L, -2, "lpeg");
+    lua_pushcfunction(L, luaopen_unicode);
+    lua_setfield(L, -2, "unicode");
+    lua_pop(L, 1);
 
-    luaL_loadbuffer(L, main_squished_lua, main_squished_lua_len, "main_squished_lua");
+    /* push debug.traceback */
+    lua_getglobal(L, LUA_DBLIBNAME);
+    lua_getfield(L, -1, "traceback");
+    lua_remove(L, -2);
 
-    if (lua_pcall(L, 0, LUA_MULTRET, 0) != 0) {
-      lua_error(L);
+    if (luaL_loadfile(L, "src/main_squished.lua") != 0) {
+    /*if (luaL_loadbuffer(L,*/
+                /*main_squished_lua, main_squished_lua_len,*/
+                /*"main_squished_lua") != 0) {*/
+        const char *msg = lua_tostring(L, -1);
+        printf("load main chunk: %s\n", msg);
+        return 1;
+    }
+
+    if (lua_pcall(L, 0, 0, -2) != 0) {
+        const char *msg = lua_tostring(L, -1);
+        printf("eval main chunk: %s\n", msg);
+        return 2;
     }
 
     lua_close(L);

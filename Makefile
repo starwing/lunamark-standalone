@@ -20,7 +20,8 @@ $(target) : objs $(objs)
 clean:
 	-$(RM) -fr objs $(target) src/cosmo src/lunamark \
 	    src/cosmo.lua src/lunamark.lua \
-	    src/alt_getopt.lua src/re.lua
+	    src/alt_getopt.lua src/re.lua \
+	    main_squished.lua scripts.c
 
 objs:
 	mkdir objs
@@ -37,7 +38,7 @@ objs/slnunico.o : externals/slnunicode/slnunico.c
 objs/scripts.o : src/scripts.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-src/scripts.c : src/main_squished.lua
+src/scripts.c : src/main_squished.lua $(LUA)
 	$(LUA) src/bin2c.lua -n main_squished_lua -o $@ $<
 
 src/main_squished.lua : $(LUA) $(SQUISH_V)/squish \
@@ -51,7 +52,7 @@ src/main_squished.lua : $(LUA) $(SQUISH_V)/squish \
 	cd src && ../$(LUA) ../$(SQUISH_V)/squish
 
 $(LUA): $(LUA_V)
-	cd $(LUA_V) && $(MAKE) $(PLAT)
+	cd $(LUA_V) && $(MAKE) $(PLAT) SHELL=cmd
 
 $(SQUISH_V)/squish:
 	cd $(SQUISH_V) && $(MAKE)
