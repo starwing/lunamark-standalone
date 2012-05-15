@@ -54,7 +54,7 @@ local function save_file(fname, dat)
 end
 
 
-function minify_string(dat)
+local function minify_string(dat)
 	llex.init(dat)
 	llex.llex()
 	local toklist, seminfolist, toklnlist
@@ -78,7 +78,7 @@ function minify_string(dat)
 	return dat;
 end
 
-function minify_file(srcfl, destfl)
+local function minify_file(srcfl, destfl)
 	local z = load_file(srcfl);
 	z = minify_string(z);
 	save_file(destfl, z);

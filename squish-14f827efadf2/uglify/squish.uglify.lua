@@ -6,14 +6,14 @@ local keywords = { "and", "break", "do", "else", "elseif",
         "in", "local", "nil", "not", "or", "repeat",
             "return", "then", "true", "until", "while" }
 
-function uglify_file(infile_fn, outfile_fn)
+local function uglify_file(infile_fn, outfile_fn)
 	local infile, err = io.open(infile_fn);
 	if not infile then
 		print_err("Can't open input file for reading: "..tostring(err));
 		return;
 	end
 	
-	local outfile, err = io.open(outfile_fn..".uglified", "wb+");
+	local outfile, err = io.open(outfile_fn..".uglified", "w+b");
 	if not outfile then
 		print_err("Can't open output file for writing: "..tostring(err));
 		return;

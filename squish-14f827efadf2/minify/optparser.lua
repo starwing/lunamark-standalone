@@ -30,7 +30,6 @@
 local base = _G
 local string = require "string"
 local table = require "table"
-module "optparser"
 
 ----------------------------------------------------------------------
 -- Letter frequencies for reducing symbol entropy (fixed version)
@@ -440,3 +439,7 @@ function optimize(option, _toklist, _seminfolist, _globalinfo, _localinfo)
   local afteruniq = preprocess(localinfo)
   ------------------------------------------------------------------
 end
+
+return {
+    optimize = optimize
+}

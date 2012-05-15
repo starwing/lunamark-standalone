@@ -1,7 +1,7 @@
 
 local cs = require "minichunkspy"
 
-function compile_string(str, name)
+local function compile_string(str, name)
 	-- Strips debug info, if you're wondering :)
 	local chunk = string.dump(loadstring(str, name));
 	if ((not opts.debug) or opts.compile_strip) and opts.compile_strip ~= false then
@@ -20,7 +20,7 @@ function compile_string(str, name)
 	return chunk;
 end
 
-function compile_file(infile_fn, outfile_fn)
+local function compile_file(infile_fn, outfile_fn)
 	local infile, err = io.open(infile_fn);
 	if not infile then
 		print_err("Can't open input file for reading: "..tostring(err));

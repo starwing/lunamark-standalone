@@ -25,10 +25,10 @@
 -- * Please read technotes.txt for more technical details.
 ----------------------------------------------------------------------]]
 
-local base = _G
+local M = {}
 local string = require "string"
-module "llex"
-
+local base_error = error
+local base_tonumber = tonumber
 local find = string.find
 local match = string.match
 local sub = string.sub
@@ -58,10 +58,10 @@ local z,                -- source stream
 ----------------------------------------------------------------------
 
 local function addtoken(token, info)
-  local i = #tok + 1
-  tok[i] = token
-  seminfo[i] = info
-  tokln[i] = ln
+  local i = #M.tok + 1
+  M.tok[i] = token
+  M.seminfo[i] = info
+  M.tokln[i] = ln
 end
 
 ----------------------------------------------------------------------
@@ -87,14 +87,14 @@ end
 -- initialize lexer for given source _z and source name _sourceid
 ----------------------------------------------------------------------
 
-function init(_z, _sourceid)
+function M.init(_z, _sourceid)
   z = _z                        -- source
   sourceid = _sourceid          -- name of source
   I = 1                         -- lexer's position in source
   ln = 1                        -- line number
-  tok = {}                      -- lexed token list*
-  seminfo = {}                  -- lexed semantic information list*
-  tokln = {}                    -- line numbers for messages*
+  M.tok = {}                      -- lexed token list*
+  M.seminfo = {}                  -- lexed semantic information list*
+  M.tokln = {}                    -- line numbers for messages*
                                 -- (*) externally visible thru' module
   --------------------------------------------------------------------
   -- initial processing (shbang handling)
@@ -111,7 +111,7 @@ end
 -- returns a chunk name or id, no truncation for long names
 ----------------------------------------------------------------------
 
-function chunkid()
+local function chunkid()
   if sourceid and match(sourceid, "^[=@]") then
     return sub(sourceid, 2)  -- remove first char
   end
@@ -123,11 +123,11 @@ end
 -- * a simplified version, does not report what token was responsible
 ----------------------------------------------------------------------
 
-function errorline(s, line)
-  local e = error or base.error
+function M.errorline(s, line)
+  local e = error or base_error
   e(string.format("%s:%d: %s", chunkid(), line or ln, s))
 end
-local errorline = errorline
+local errorline = M.errorline
 
 ------------------------------------------------------------------------
 -- count separators ("=") in a long string delimiter
@@ -233,7 +233,7 @@ end
 -- main lexer function
 ------------------------------------------------------------------------
 
-function llex()
+function M.llex()
   local find = find
   local match = match
   while true do--outer
@@ -265,7 +265,7 @@ function llex()
         local _, q = find(z, "^[_%w]*", i)
         I = q + 1
         local v = sub(z, p, q)                  -- string equivalent
-        if not base.tonumber(v) then            -- handles hex test also
+        if not base_tonumber(v) then            -- handles hex test also
           errorline("malformed number")
         end
         addtoken("TK_NUMBER", v)
@@ -352,4 +352,4 @@ function llex()
   end--while outer
 end
 
-return base.getfenv()
+return M

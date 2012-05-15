@@ -27,8 +27,6 @@
 
 local base = _G
 local string = require "string"
-module "lparser"
-local _G = base.getfenv()
 
 --[[--------------------------------------------------------------------
 -- variable and data structure initialization
@@ -72,10 +70,6 @@ for v in gmatch("else elseif end until <eof>", "%S+") do
 end
 
 local stat_call = {}            -- lookup for calls in stat()
-for v in gmatch("if while do for repeat function local return break", "%S+") do
-  stat_call[v] = v.."_stat"
-end
-
 local binopr_left = {}          -- binary operators, left priority
 local binopr_right = {}         -- binary operators, right priority
 for op, lt, rt in gmatch([[
@@ -1011,7 +1005,7 @@ end
 -- * used in stat()
 ----------------------------------------------------------------------
 
-function for_stat()
+stat_call["for"] = function()
   -- stat -> for_stat -> FOR (fornum | forlist) END
   local line = line
   enterblock(true)  -- scope for loop and control variables
@@ -1034,7 +1028,7 @@ end
 -- * used in stat()
 ----------------------------------------------------------------------
 
-function while_stat()
+stat_call["while"] = function()
   -- stat -> while_stat -> WHILE cond DO block END
   local line = line
   nextt()  -- skip WHILE
@@ -1054,7 +1048,7 @@ end
 -- * used in stat()
 ----------------------------------------------------------------------
 
-function repeat_stat()
+stat_call["repeat"] = function()
   -- stat -> repeat_stat -> REPEAT block UNTIL cond
   local line = line
   enterblock(true)  -- loop block
@@ -1073,7 +1067,7 @@ end
 -- * used in stat()
 ----------------------------------------------------------------------
 
-function if_stat()
+stat_call["if"] = function()
   -- stat -> if_stat -> IF cond THEN block
   --                    {ELSEIF cond THEN block} [ELSE block] END
   local line = line
@@ -1094,7 +1088,7 @@ end
 -- * used in stat()
 ----------------------------------------------------------------------
 
-function return_stat()
+stat_call["return"] = function()
   -- stat -> return_stat -> RETURN explist
   local e = {}
   nextt()  -- skip RETURN
@@ -1111,7 +1105,7 @@ end
 -- * used in stat()
 ----------------------------------------------------------------------
 
-function break_stat()
+stat_call["break"] = function()
   -- stat -> break_stat -> BREAK
   local bl = fs.bl
   nextt()  -- skip BREAK
@@ -1130,7 +1124,7 @@ end
 -- * used in stat()
 ----------------------------------------------------------------------
 
-function expr_stat()
+stat_call["expr"] = function()
   -- stat -> expr_stat -> func | assignment
   local v = {}
   v.v = {}
@@ -1148,7 +1142,7 @@ end
 -- * used in stat()
 ----------------------------------------------------------------------
 
-function function_stat()
+stat_call["function"] = function()
   -- stat -> function_stat -> FUNCTION funcname body
   local line = line
   local v, b = {}, {}
@@ -1162,7 +1156,7 @@ end
 -- * used in stat()
 ----------------------------------------------------------------------
 
-function do_stat()
+stat_call["do"] = function()
   -- stat -> do_stat -> DO block END
   local line = line
   nextt()  -- skip DO
@@ -1175,7 +1169,7 @@ end
 -- * used in stat()
 ----------------------------------------------------------------------
 
-function local_stat()
+stat_call["local"] = function()
   -- stat -> local_stat -> LOCAL FUNCTION localfunc
   --                    -> LOCAL localstat
   nextt()  -- skip LOCAL
@@ -1206,11 +1200,11 @@ local function stat()
   local fn = stat_call[c]
   -- handles: if while do for repeat function local return break
   if fn then
-    _G[fn]()
+    fn()
     -- return or break must be last statement
     if c == "return" or c == "break" then return true end
   else
-    expr_stat()
+    stat_call.expr()
   end
   return false
 end
@@ -1234,7 +1228,7 @@ end
 -- performs parsing, returns parsed data structure
 ----------------------------------------------------------------------
 
-function parser()
+local function parser()
   open_func()
   fs.is_vararg = true  -- main func. is always vararg
   nextt()  -- read first token
@@ -1248,7 +1242,7 @@ end
 -- initialization function
 ----------------------------------------------------------------------
 
-function init(tokorig, seminfoorig, toklnorig)
+local function init(tokorig, seminfoorig, toklnorig)
   tpos = 1                      -- token position
   top_fs = {}                   -- reset top level function state
   ------------------------------------------------------------------
@@ -1292,4 +1286,7 @@ function init(tokorig, seminfoorig, toklnorig)
   ilocalinfo, ilocalrefs = {}, {}
 end
 
-return _G
+return {
+    init = init,
+    parser = parser,
+}
