@@ -153,7 +153,7 @@ else
 end
 
 print_info("Writing "..out_fn.."...");
-local f, err = io.open(out_fn, "w+");
+local f, err = io.open(out_fn, "w+b");
 if not f then
 	print_err("Couldn't open output file: "..tostring(err));
 	os.exit(1);
@@ -236,15 +236,17 @@ for _, module in ipairs(modules) do
 		end
 	end
 	if data then
+		f:write("do local _ENV = _ENV; ")
 		if not opts.debug then
 			f:write("package.preload['", modulename, "'] = (function (...)\n");
 			f:write(data);
-			f:write(" end)\n");
+			f:write(" end)");
 		else
 			f:write("package.preload['", modulename, "'] = assert(loadstring(\n");
 			f:write(("%q\n"):format(data));
-			f:write(", ", ("%q"):format("@"..path), "))\n");
+			f:write(", ", ("%q"):format("@"..path), "))");
 		end
+		f:write(" end\n")
 	else
 		print_err("Couldn't pack module '"..modulename.."': "..(err or "unknown error... path to module file correct?"));
 		os.exit(1);
@@ -262,8 +264,8 @@ if #resources > 0 then
 			os.exit(1);
 		end
 		local data = res_file:read("*a");
-		local maxequals = 0;
-		data:gsub("(=+)", function (equals_string) maxequals = math.max(maxequals, #equals_string); end);
+--[[		local maxequals = 0;
+		data:gsub("(=+)", function (equals_string) maxequals = math.max(maxequals, #equals_string); end); ]]
 		
 		f:write(("resources[%q] = %q"):format(name, data));
 --[[		f:write(("resources[%q] = ["):format(name), string.rep("=", maxequals+1), "[");
