@@ -1,5 +1,9 @@
 tags
+*.o
+*.a
 *.exe
+*.obj
+*.dll
 objs
 squish-14f827efadf2/squish
 squish-14f827efadf2/squish.debug
