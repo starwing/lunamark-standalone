@@ -1,0 +1,592 @@
+diff --git a/squish-14f827efadf2/compile/squish.compile.lua b/squish-14f827efadf2/compile/squish.compile.lua
+index 9be22f7..b149f0c 100644
+--- a/squish-14f827efadf2/compile/squish.compile.lua
++++ b/squish-14f827efadf2/compile/squish.compile.lua
+@@ -1,7 +1,7 @@
+ 
+ local cs = require "minichunkspy"
+ 
+-function compile_string(str, name)
++local function compile_string(str, name)
+ 	-- Strips debug info, if you're wondering :)
+ 	local chunk = string.dump(loadstring(str, name));
+ 	if ((not opts.debug) or opts.compile_strip) and opts.compile_strip ~= false then
+@@ -20,7 +20,7 @@ function compile_string(str, name)
+ 	return chunk;
+ end
+ 
+-function compile_file(infile_fn, outfile_fn)
++local function compile_file(infile_fn, outfile_fn)
+ 	local infile, err = io.open(infile_fn);
+ 	if not infile then
+ 		print_err("Can't open input file for reading: "..tostring(err));
+diff --git a/squish-14f827efadf2/minify/llex.lua b/squish-14f827efadf2/minify/llex.lua
+index a637f30..2c040e7 100644
+--- a/squish-14f827efadf2/minify/llex.lua
++++ b/squish-14f827efadf2/minify/llex.lua
+@@ -25,10 +25,10 @@
+ -- * Please read technotes.txt for more technical details.
+ ----------------------------------------------------------------------]]
+ 
+-local base = _G
++local M = {}
+ local string = require "string"
+-module "llex"
+-
++local base_error = error
++local base_tonumber = tonumber
+ local find = string.find
+ local match = string.match
+ local sub = string.sub
+@@ -58,10 +58,10 @@ local z,                -- source stream
+ ----------------------------------------------------------------------
+ 
+ local function addtoken(token, info)
+-  local i = #tok + 1
+-  tok[i] = token
+-  seminfo[i] = info
+-  tokln[i] = ln
++  local i = #M.tok + 1
++  M.tok[i] = token
++  M.seminfo[i] = info
++  M.tokln[i] = ln
+ end
+ 
+ ----------------------------------------------------------------------
+@@ -87,14 +87,14 @@ end
+ -- initialize lexer for given source _z and source name _sourceid
+ ----------------------------------------------------------------------
+ 
+-function init(_z, _sourceid)
++function M.init(_z, _sourceid)
+   z = _z                        -- source
+   sourceid = _sourceid          -- name of source
+   I = 1                         -- lexer's position in source
+   ln = 1                        -- line number
+-  tok = {}                      -- lexed token list*
+-  seminfo = {}                  -- lexed semantic information list*
+-  tokln = {}                    -- line numbers for messages*
++  M.tok = {}                      -- lexed token list*
++  M.seminfo = {}                  -- lexed semantic information list*
++  M.tokln = {}                    -- line numbers for messages*
+                                 -- (*) externally visible thru' module
+   --------------------------------------------------------------------
+   -- initial processing (shbang handling)
+@@ -111,7 +111,7 @@ end
+ -- returns a chunk name or id, no truncation for long names
+ ----------------------------------------------------------------------
+ 
+-function chunkid()
++local function chunkid()
+   if sourceid and match(sourceid, "^[=@]") then
+     return sub(sourceid, 2)  -- remove first char
+   end
+@@ -123,11 +123,11 @@ end
+ -- * a simplified version, does not report what token was responsible
+ ----------------------------------------------------------------------
+ 
+-function errorline(s, line)
+-  local e = error or base.error
++function M.errorline(s, line)
++  local e = error or base_error
+   e(string.format("%s:%d: %s", chunkid(), line or ln, s))
+ end
+-local errorline = errorline
++local errorline = M.errorline
+ 
+ ------------------------------------------------------------------------
+ -- count separators ("=") in a long string delimiter
+@@ -233,7 +233,7 @@ end
+ -- main lexer function
+ ------------------------------------------------------------------------
+ 
+-function llex()
++function M.llex()
+   local find = find
+   local match = match
+   while true do--outer
+@@ -265,7 +265,7 @@ function llex()
+         local _, q = find(z, "^[_%w]*", i)
+         I = q + 1
+         local v = sub(z, p, q)                  -- string equivalent
+-        if not base.tonumber(v) then            -- handles hex test also
++        if not base_tonumber(v) then            -- handles hex test also
+           errorline("malformed number")
+         end
+         addtoken("TK_NUMBER", v)
+@@ -352,4 +352,4 @@ function llex()
+   end--while outer
+ end
+ 
+-return base.getfenv()
++return M
+diff --git a/squish-14f827efadf2/minify/lparser.lua b/squish-14f827efadf2/minify/lparser.lua
+index a1e10e0..0fbd685 100644
+--- a/squish-14f827efadf2/minify/lparser.lua
++++ b/squish-14f827efadf2/minify/lparser.lua
+@@ -27,8 +27,6 @@
+ 
+ local base = _G
+ local string = require "string"
+-module "lparser"
+-local _G = base.getfenv()
+ 
+ --[[--------------------------------------------------------------------
+ -- variable and data structure initialization
+@@ -72,10 +70,6 @@ for v in gmatch("else elseif end until <eof>", "%S+") do
+ end
+ 
+ local stat_call = {}            -- lookup for calls in stat()
+-for v in gmatch("if while do for repeat function local return break", "%S+") do
+-  stat_call[v] = v.."_stat"
+-end
+-
+ local binopr_left = {}          -- binary operators, left priority
+ local binopr_right = {}         -- binary operators, right priority
+ for op, lt, rt in gmatch([[
+@@ -1011,7 +1005,7 @@ end
+ -- * used in stat()
+ ----------------------------------------------------------------------
+ 
+-function for_stat()
++stat_call["for"] = function()
+   -- stat -> for_stat -> FOR (fornum | forlist) END
+   local line = line
+   enterblock(true)  -- scope for loop and control variables
+@@ -1034,7 +1028,7 @@ end
+ -- * used in stat()
+ ----------------------------------------------------------------------
+ 
+-function while_stat()
++stat_call["while"] = function()
+   -- stat -> while_stat -> WHILE cond DO block END
+   local line = line
+   nextt()  -- skip WHILE
+@@ -1054,7 +1048,7 @@ end
+ -- * used in stat()
+ ----------------------------------------------------------------------
+ 
+-function repeat_stat()
++stat_call["repeat"] = function()
+   -- stat -> repeat_stat -> REPEAT block UNTIL cond
+   local line = line
+   enterblock(true)  -- loop block
+@@ -1073,7 +1067,7 @@ end
+ -- * used in stat()
+ ----------------------------------------------------------------------
+ 
+-function if_stat()
++stat_call["if"] = function()
+   -- stat -> if_stat -> IF cond THEN block
+   --                    {ELSEIF cond THEN block} [ELSE block] END
+   local line = line
+@@ -1094,7 +1088,7 @@ end
+ -- * used in stat()
+ ----------------------------------------------------------------------
+ 
+-function return_stat()
++stat_call["return"] = function()
+   -- stat -> return_stat -> RETURN explist
+   local e = {}
+   nextt()  -- skip RETURN
+@@ -1111,7 +1105,7 @@ end
+ -- * used in stat()
+ ----------------------------------------------------------------------
+ 
+-function break_stat()
++stat_call["break"] = function()
+   -- stat -> break_stat -> BREAK
+   local bl = fs.bl
+   nextt()  -- skip BREAK
+@@ -1130,7 +1124,7 @@ end
+ -- * used in stat()
+ ----------------------------------------------------------------------
+ 
+-function expr_stat()
++stat_call["expr"] = function()
+   -- stat -> expr_stat -> func | assignment
+   local v = {}
+   v.v = {}
+@@ -1148,7 +1142,7 @@ end
+ -- * used in stat()
+ ----------------------------------------------------------------------
+ 
+-function function_stat()
++stat_call["function"] = function()
+   -- stat -> function_stat -> FUNCTION funcname body
+   local line = line
+   local v, b = {}, {}
+@@ -1162,7 +1156,7 @@ end
+ -- * used in stat()
+ ----------------------------------------------------------------------
+ 
+-function do_stat()
++stat_call["do"] = function()
+   -- stat -> do_stat -> DO block END
+   local line = line
+   nextt()  -- skip DO
+@@ -1175,7 +1169,7 @@ end
+ -- * used in stat()
+ ----------------------------------------------------------------------
+ 
+-function local_stat()
++stat_call["local"] = function()
+   -- stat -> local_stat -> LOCAL FUNCTION localfunc
+   --                    -> LOCAL localstat
+   nextt()  -- skip LOCAL
+@@ -1206,11 +1200,11 @@ local function stat()
+   local fn = stat_call[c]
+   -- handles: if while do for repeat function local return break
+   if fn then
+-    _G[fn]()
++    fn()
+     -- return or break must be last statement
+     if c == "return" or c == "break" then return true end
+   else
+-    expr_stat()
++    stat_call.expr()
+   end
+   return false
+ end
+@@ -1234,7 +1228,7 @@ end
+ -- performs parsing, returns parsed data structure
+ ----------------------------------------------------------------------
+ 
+-function parser()
++local function parser()
+   open_func()
+   fs.is_vararg = true  -- main func. is always vararg
+   nextt()  -- read first token
+@@ -1248,7 +1242,7 @@ end
+ -- initialization function
+ ----------------------------------------------------------------------
+ 
+-function init(tokorig, seminfoorig, toklnorig)
++local function init(tokorig, seminfoorig, toklnorig)
+   tpos = 1                      -- token position
+   top_fs = {}                   -- reset top level function state
+   ------------------------------------------------------------------
+@@ -1292,4 +1286,7 @@ function init(tokorig, seminfoorig, toklnorig)
+   ilocalinfo, ilocalrefs = {}, {}
+ end
+ 
+-return _G
++return {
++    init = init,
++    parser = parser,
++}
+diff --git a/squish-14f827efadf2/minify/optlex.lua b/squish-14f827efadf2/minify/optlex.lua
+index 4c46b91..2ebb77d 100644
+--- a/squish-14f827efadf2/minify/optlex.lua
++++ b/squish-14f827efadf2/minify/optlex.lua
+@@ -19,9 +19,11 @@
+ -- * TODO: (numbers) warn if overly significant digit
+ ----------------------------------------------------------------------]]
+ 
+-local base = _G
++local M = {}
++local tostring = tostring
++local tonumber = tonumber
++local base_print = print
+ local string = require "string"
+-module "optlex"
+ local match = string.match
+ local sub = string.sub
+ local find = string.find
+@@ -33,9 +35,9 @@ local print
+ ------------------------------------------------------------------------
+ 
+ -- error function, can override by setting own function into module
+-error = base.error
++M.error = error
+ 
+-warn = {}                       -- table for warning flags
++M.warn = {}                       -- table for warning flags
+ 
+ local stoks, sinfos, stoklns    -- source lists
+ 
+@@ -215,7 +217,7 @@ local function do_number(i)
+   local y                       -- 'after', if better
+   --------------------------------------------------------------------
+   if match(z, "^0[xX]") then            -- hexadecimal number
+-    local v = base.tostring(base.tonumber(z))
++    local v = tostring(tonumber(z))
+     if #v <= #z then
+       z = v  -- change to integer, AND continue
+     else
+@@ -228,7 +230,7 @@ local function do_number(i)
+     if z + 0 > 0 then
+       z = match(z, "^0*([1-9]%d*)$")  -- remove leading zeros
+       local v = #match(z, "0*$")
+-      local nv = base.tostring(v)
++      local nv = tostring(v)
+       if v > #nv + 1 then  -- scientific is shorter
+         z = sub(z, 1, #z - v).."e"..nv
+       end
+@@ -255,7 +257,7 @@ local function do_number(i)
+         y = "."..q  -- tentative, e.g. .000123
+         local v = #match(q, "^0*")  -- # leading spaces
+         local w = #q - v            -- # significant digits
+-        local nv = base.tostring(#q)
++        local nv = tostring(#q)
+         -- e.g. compare 123e-6 versus .000123
+         if w + 2 + #nv < 1 + #q then
+           y = sub(q, -w).."e-"..nv
+@@ -265,7 +267,7 @@ local function do_number(i)
+   --------------------------------------------------------------------
+   else                                  -- scientific number
+     local sig, ex = match(z, "^([^eE]+)[eE]([%+%-]?%d+)$")
+-    ex = base.tonumber(ex)
++    ex = tonumber(ex)
+     -- if got ".", shift out fractional portion of significand
+     local p, q = match(sig, "^(%d*)%.(%d*)$")
+     if p then
+@@ -283,7 +285,7 @@ local function do_number(i)
+         ex = ex + v
+       end
+       -- examine exponent and determine which format is best
+-      local nex = base.tostring(ex)
++      local nex = tostring(ex)
+       if ex == 0 then  -- it's just an integer
+         y = sig
+       elseif ex > 0 and (ex <= 1 + #nex) then  -- a number
+@@ -466,7 +468,7 @@ local function do_lstring(I)
+     if ln ~= "" then
+       -- flag a warning if there are trailing spaces, won't optimize!
+       if match(ln, "%s+$") then
+-        warn.lstring = "trailing whitespace in long string near line "..stoklns[I]
++        M.warn.lstring = "trailing whitespace in long string near line "..stoklns[I]
+       end
+       y = y..ln
+     end
+@@ -607,7 +609,7 @@ end
+ --   processing is a little messy or convoluted
+ ------------------------------------------------------------------------
+ 
+-function optimize(option, toklist, semlist, toklnlist)
++function M.optimize(option, toklist, semlist, toklnlist)
+   --------------------------------------------------------------------
+   -- set option flags
+   --------------------------------------------------------------------
+@@ -619,7 +621,7 @@ function optimize(option, toklist, semlist, toklnlist)
+   local opt_numbers = option["opt-numbers"]
+   local opt_keep = option.KEEP
+   opt_details = option.DETAILS and 0  -- upvalues for details display
+-  print = print or base.print
++  print = print or base_print
+   if opt_eols then  -- forced settings, otherwise won't work properly
+     opt_comments = true
+     opt_whitespace = true
+@@ -830,3 +832,5 @@ function optimize(option, toklist, semlist, toklnlist)
+   if opt_details and opt_details > 0 then print() end -- spacing
+   return stoks, sinfos, stoklns
+ end
++
++return M
+diff --git a/squish-14f827efadf2/minify/optparser.lua b/squish-14f827efadf2/minify/optparser.lua
+index dc0b09b..b2bb2ff 100644
+--- a/squish-14f827efadf2/minify/optparser.lua
++++ b/squish-14f827efadf2/minify/optparser.lua
+@@ -30,7 +30,6 @@
+ local base = _G
+ local string = require "string"
+ local table = require "table"
+-module "optparser"
+ 
+ ----------------------------------------------------------------------
+ -- Letter frequencies for reducing symbol entropy (fixed version)
+@@ -440,3 +439,7 @@ function optimize(option, _toklist, _seminfolist, _globalinfo, _localinfo)
+   local afteruniq = preprocess(localinfo)
+   ------------------------------------------------------------------
+ end
++
++return {
++    optimize = optimize
++}
+diff --git a/squish-14f827efadf2/minify/squish.minify.lua b/squish-14f827efadf2/minify/squish.minify.lua
+index 7b14286..bd9ab14 100644
+--- a/squish-14f827efadf2/minify/squish.minify.lua
++++ b/squish-14f827efadf2/minify/squish.minify.lua
+@@ -54,7 +54,7 @@ local function save_file(fname, dat)
+ end
+ 
+ 
+-function minify_string(dat)
++local function minify_string(dat)
+ 	llex.init(dat)
+ 	llex.llex()
+ 	local toklist, seminfolist, toklnlist
+@@ -78,7 +78,7 @@ function minify_string(dat)
+ 	return dat;
+ end
+ 
+-function minify_file(srcfl, destfl)
++local function minify_file(srcfl, destfl)
+ 	local z = load_file(srcfl);
+ 	z = minify_string(z);
+ 	save_file(destfl, z);
+diff --git a/squish-14f827efadf2/squish.lua b/squish-14f827efadf2/squish.lua
+index 1ef1b1e..aa34d45 100644
+--- a/squish-14f827efadf2/squish.lua
++++ b/squish-14f827efadf2/squish.lua
+@@ -153,7 +153,7 @@ else
+ end
+ 
+ print_info("Writing "..out_fn.."...");
+-local f, err = io.open(out_fn, "w+");
++local f, err = io.open(out_fn, "w+b");
+ if not f then
+ 	print_err("Couldn't open output file: "..tostring(err));
+ 	os.exit(1);
+@@ -236,15 +236,17 @@ for _, module in ipairs(modules) do
+ 		end
+ 	end
+ 	if data then
++		f:write("do local _ENV = _ENV; ")
+ 		if not opts.debug then
+ 			f:write("package.preload['", modulename, "'] = (function (...)\n");
+ 			f:write(data);
+-			f:write(" end)\n");
++			f:write(" end)");
+ 		else
+ 			f:write("package.preload['", modulename, "'] = assert(loadstring(\n");
+ 			f:write(("%q\n"):format(data));
+-			f:write(", ", ("%q"):format("@"..path), "))\n");
++			f:write(", ", ("%q"):format("@"..path), "))");
+ 		end
++		f:write(" end\n")
+ 	else
+ 		print_err("Couldn't pack module '"..modulename.."': "..(err or "unknown error... path to module file correct?"));
+ 		os.exit(1);
+@@ -262,8 +264,8 @@ if #resources > 0 then
+ 			os.exit(1);
+ 		end
+ 		local data = res_file:read("*a");
+-		local maxequals = 0;
+-		data:gsub("(=+)", function (equals_string) maxequals = math.max(maxequals, #equals_string); end);
++--[[		local maxequals = 0;
++		data:gsub("(=+)", function (equals_string) maxequals = math.max(maxequals, #equals_string); end); ]]
+ 		
+ 		f:write(("resources[%q] = %q"):format(name, data));
+ --[[		f:write(("resources[%q] = ["):format(name), string.rep("=", maxequals+1), "[");
+diff --git a/squish-14f827efadf2/uglify/llex.lua b/squish-14f827efadf2/uglify/llex.lua
+index a637f30..2c040e7 100644
+--- a/squish-14f827efadf2/uglify/llex.lua
++++ b/squish-14f827efadf2/uglify/llex.lua
+@@ -25,10 +25,10 @@
+ -- * Please read technotes.txt for more technical details.
+ ----------------------------------------------------------------------]]
+ 
+-local base = _G
++local M = {}
+ local string = require "string"
+-module "llex"
+-
++local base_error = error
++local base_tonumber = tonumber
+ local find = string.find
+ local match = string.match
+ local sub = string.sub
+@@ -58,10 +58,10 @@ local z,                -- source stream
+ ----------------------------------------------------------------------
+ 
+ local function addtoken(token, info)
+-  local i = #tok + 1
+-  tok[i] = token
+-  seminfo[i] = info
+-  tokln[i] = ln
++  local i = #M.tok + 1
++  M.tok[i] = token
++  M.seminfo[i] = info
++  M.tokln[i] = ln
+ end
+ 
+ ----------------------------------------------------------------------
+@@ -87,14 +87,14 @@ end
+ -- initialize lexer for given source _z and source name _sourceid
+ ----------------------------------------------------------------------
+ 
+-function init(_z, _sourceid)
++function M.init(_z, _sourceid)
+   z = _z                        -- source
+   sourceid = _sourceid          -- name of source
+   I = 1                         -- lexer's position in source
+   ln = 1                        -- line number
+-  tok = {}                      -- lexed token list*
+-  seminfo = {}                  -- lexed semantic information list*
+-  tokln = {}                    -- line numbers for messages*
++  M.tok = {}                      -- lexed token list*
++  M.seminfo = {}                  -- lexed semantic information list*
++  M.tokln = {}                    -- line numbers for messages*
+                                 -- (*) externally visible thru' module
+   --------------------------------------------------------------------
+   -- initial processing (shbang handling)
+@@ -111,7 +111,7 @@ end
+ -- returns a chunk name or id, no truncation for long names
+ ----------------------------------------------------------------------
+ 
+-function chunkid()
++local function chunkid()
+   if sourceid and match(sourceid, "^[=@]") then
+     return sub(sourceid, 2)  -- remove first char
+   end
+@@ -123,11 +123,11 @@ end
+ -- * a simplified version, does not report what token was responsible
+ ----------------------------------------------------------------------
+ 
+-function errorline(s, line)
+-  local e = error or base.error
++function M.errorline(s, line)
++  local e = error or base_error
+   e(string.format("%s:%d: %s", chunkid(), line or ln, s))
+ end
+-local errorline = errorline
++local errorline = M.errorline
+ 
+ ------------------------------------------------------------------------
+ -- count separators ("=") in a long string delimiter
+@@ -233,7 +233,7 @@ end
+ -- main lexer function
+ ------------------------------------------------------------------------
+ 
+-function llex()
++function M.llex()
+   local find = find
+   local match = match
+   while true do--outer
+@@ -265,7 +265,7 @@ function llex()
+         local _, q = find(z, "^[_%w]*", i)
+         I = q + 1
+         local v = sub(z, p, q)                  -- string equivalent
+-        if not base.tonumber(v) then            -- handles hex test also
++        if not base_tonumber(v) then            -- handles hex test also
+           errorline("malformed number")
+         end
+         addtoken("TK_NUMBER", v)
+@@ -352,4 +352,4 @@ function llex()
+   end--while outer
+ end
+ 
+-return base.getfenv()
++return M
+diff --git a/squish-14f827efadf2/uglify/squish.uglify.lua b/squish-14f827efadf2/uglify/squish.uglify.lua
+index c965252..cc29485 100644
+--- a/squish-14f827efadf2/uglify/squish.uglify.lua
++++ b/squish-14f827efadf2/uglify/squish.uglify.lua
+@@ -6,14 +6,14 @@ local keywords = { "and", "break", "do", "else", "elseif",
+         "in", "local", "nil", "not", "or", "repeat",
+             "return", "then", "true", "until", "while" }
+ 
+-function uglify_file(infile_fn, outfile_fn)
++local function uglify_file(infile_fn, outfile_fn)
+ 	local infile, err = io.open(infile_fn);
+ 	if not infile then
+ 		print_err("Can't open input file for reading: "..tostring(err));
+ 		return;
+ 	end
+ 	
+-	local outfile, err = io.open(outfile_fn..".uglified", "wb+");
++	local outfile, err = io.open(outfile_fn..".uglified", "w+b");
+ 	if not outfile then
+ 		print_err("Can't open output file for writing: "..tostring(err));
+ 		return;
