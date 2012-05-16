@@ -21,7 +21,7 @@ clean:
 	-$(RM) -fr objs $(target) src/cosmo src/lunamark \
 	    src/cosmo.lua src/lunamark.lua \
 	    src/alt_getopt.lua src/re.lua \
-	    main_squished.lua scripts.c
+	    src/main_squished.lua src/scripts.c
 
 objs:
 	mkdir objs
