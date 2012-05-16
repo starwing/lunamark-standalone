@@ -3,7 +3,7 @@
 	url = https://github.com/LuaDist/slnunicode.git
 [submodule "externals/cosmo"]
 	path = externals/cosmo
-	url = https://github.com/mascarenhas/cosmo.git
+	url = https://github.com/LuaDist/cosmo.git
 [submodule "externals/alt-getopt"]
 	path = externals/alt-getopt
 	url = https://github.com/LuaDist/alt-getopt.git
