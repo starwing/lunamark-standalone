@@ -12,7 +12,7 @@ LD = gcc
 CP = cp
 RM = rm
 
-CFLAGS = -I$(LUA_V)/src $(MYCFLAGS)
+CFLAGS = -O2 -Wall -I$(LUA_V)/src $(MYCFLAGS)
 LIBS = -L$(LUA_V)/src -llua
 
 $(target) : objs $(objs) $(LUA_V)/src/liblua.a
