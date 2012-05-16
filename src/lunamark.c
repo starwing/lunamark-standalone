@@ -27,7 +27,7 @@ int main( int argc, char *argv[] )
 
     /* load the libs */
     luaL_openlibs(L);
-    luaL_getsubtable(L, LUA_REGISTRYINDEX, "_PRELOAD");
+    lua_getfield(L, LUA_REGISTRYINDEX, "_PRELOAD");
     lua_pushcfunction(L, luaopen_lpeg);
     lua_setfield(L, -2, "lpeg");
     lua_pushcfunction(L, luaopen_unicode);
@@ -58,3 +58,4 @@ int main( int argc, char *argv[] )
 
     return 0;
 }
+/* cc: flags+='-Id:/lua51/include' */
